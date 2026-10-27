@@ -75,6 +75,11 @@ function engineTurn(text){
   if(!hasDesign()||(isNew&&(BP.detectDomain(t)||t.split(/\s+/).length>5))){newDesign(text);return}
   if(/^(help|what can you do|commands)/.test(t)){say("b",helpText());return}
   if(/^undo\b/.test(t)){undo();say("b","Undid the last change.");return}
+  if(/(animate|simulate|demo|play|show|walk|trace|run).*(flow|request|workflow|journey|path)|critical (work)?flow|how (does )?(the )?data flow|data ?flow|(prompt.?injection|attack|hallucinat|outage|pii).*(demo|simulat|scenario|test)|simulate/.test(t)&&hasDesign()){
+    const sc=/inject|attack|jailbreak/.test(t)?"inject":/pii|personal|card number|ssn/.test(t)?"pii":/hallucinat|low.?confidence|don.?t know|abstain/.test(t)?"lowconf":/outage|down|fail|timeout/.test(t)?"outage":"normal";
+    const kind=/ingest|upload|document/.test(t)?"ingest":/async|background|queue|event/.test(t)?"async":/pay|money|transfer/.test(t)?"payment":null;
+    mobileShow("canvas");const f=window.BPFlow.open(kind,sc,true);
+    say("b",f?`Playing **${f.name}**${sc!=="normal"?` with the **${window.BPFlow.SCEN[sc]}** scenario`:""}: ${f.steps.length} steps. Watch the dot move through the diagram; each component lights up and the panel explains what happens there, with guardrail metrics. Use ⏸ / ⏭ to step through, or pick another workflow or scenario in the panel.`:"Add a few components first so there's a flow to show.");return}
   if(viewCommands(t))return;
   if(/test case|edge case|test plan|qa plan|how (do|should) we test/.test(t)){openSpecTab("tests");const n=BP.testCases(prof(),P.design).length;say("b",`I generated **${n} test cases** covering functional, negative, edge, performance, resilience and security${prof().genai?", plus GenAI checks for grounding, injection, privacy and regressions":""}. They're in the **Tests & edge cases** tab, where you can add your own.`);followups();return}
   if(/\b(detail(ed)?|deep.?dive|low.?level|lld|zoom into|internals?)\b/.test(t)){const nm=t.replace(/.*?(detail(ed)? design|deep.?dive|low.?level design|lld|zoom into|internals)\s*(of|for|into|on)?\s*(the\s+)?/,"").replace(/[?.!]$/,"").trim();
@@ -138,7 +143,7 @@ function viewCommands(t){
   quick=[{l:"Elbow connectors",v:"use right-angle connectors"},{l:"Straight connectors",v:"use straight lines"},VS().layers?{l:"Hide layers",v:"hide the layers"}:{l:"Group into layers",v:"group into layers"},{l:"Explain the flow",v:"explain the flow"}];renderChat();
   return true;
 }
-function helpText(){return "Here's what I understand:\n• **Describe a system**: \"Design a food delivery app for 2M users with live tracking\"\n• **Add / remove**: \"add Kafka\", \"add a notifications service\", \"remove the cache\"\n• **Swap tech**: \"use Cassandra instead of Postgres\", \"switch to GCP\"\n• **Scale**: \"10M daily users\", \"5K requests per second\", \"make it multi-region\"\n• **Shape**: \"it's read-heavy\", \"needs strong consistency\"\n• **Understand**: \"explain the flow\", \"bottlenecks\", \"capacity\"\n• **Layout**: \"use straight lines\", \"right-angle connectors\", \"group into layers\", \"move the cache to the data layer\"\n• **Go deeper**: \"detailed design of the payment service\", \"test cases\", \"which model should we use\", \"hallucination best practices\", \"make it banking grade\"\n• **Deliver**: \"break this into tasks\" builds the backlog on the Delivery Board\n\nYou can also drag, connect and edit anything directly on the diagram."}
+function helpText(){return "Here's what I understand:\n• **Describe a system**: \"Design a food delivery app for 2M users with live tracking\"\n• **Add / remove**: \"add Kafka\", \"add a notifications service\", \"remove the cache\"\n• **Swap tech**: \"use Cassandra instead of Postgres\", \"switch to GCP\"\n• **Scale**: \"10M daily users\", \"5K requests per second\", \"make it multi-region\"\n• **Shape**: \"it's read-heavy\", \"needs strong consistency\"\n• **Understand**: \"explain the flow\", \"bottlenecks\", \"capacity\"\n• **Data flow demo**: \"animate the data flow\", \"simulate a prompt injection attack\", \"show the ingestion workflow\"\n• **Layout**: \"use straight lines\", \"right-angle connectors\", \"group into layers\", \"move the cache to the data layer\"\n• **Go deeper**: \"detailed design of the payment service\", \"test cases\", \"which model should we use\", \"hallucination best practices\", \"make it banking grade\"\n• **Deliver**: \"break this into tasks\" builds the backlog on the Delivery Board\n\nYou can also drag, connect and edit anything directly on the diagram."}
 function newDesign(text){
   if(hasDesign()){const old=JSON.parse(JSON.stringify(P));old.id=uid();old.name=P.name+" (earlier)";projects[old.id]=old}
   snap();
@@ -156,7 +161,7 @@ A few questions to sharpen it:`);
   quick.push({lab:"Go deeper"},{l:"Detailed design",v:"show the detailed design"},{l:"Test cases",v:"show test cases and edge cases"},...(prof.genai?[{l:"Best model?",v:"which model should we use"}]:[]),...(prof.industry==="banking"?[]:[{l:"Make it bank-grade",v:"make it banking grade"}]),{l:"Create the backlog",v:"break this into tasks"});
   renderChat();
 }
-function followups(){quick=[{l:"Explain the flow",v:"explain the flow"},{l:"Detailed design",v:"show the detailed design"},{l:"Test cases",v:"show test cases and edge cases"},...(prof().genai?[{l:"Best model?",v:"which model should we use"}]:[]),{l:"Bottlenecks?",v:"what are the bottlenecks"},{l:"Create the backlog",v:"break this into tasks"}];renderChat()}
+function followups(){quick=[{l:"▶ Animate data flow",v:"animate the critical data flow"},{l:"Explain the flow",v:"explain the flow"},{l:"Detailed design",v:"show the detailed design"},{l:"Test cases",v:"show test cases and edge cases"},...(prof().genai?[{l:"Best model?",v:"which model should we use"}]:[]),{l:"Bottlenecks?",v:"what are the bottlenecks"},{l:"Create the backlog",v:"break this into tasks"}];renderChat()}
 function smartLink(n){
   const D=P.design,by=t=>D.nodes.filter(x=>x.type===t&&x!==n),svc=by("service"),link=(a,b,label,async)=>{if(a&&b&&a!==b&&!D.edges.some(e=>e.from===a.id&&e.to===b.id))D.edges.push({id:uid(),from:a.id,to:b.id,label:label||"",async:!!async})};
   const primary=by("sql")[0]||by("nosql")[0],gw=by("gateway")[0],client=by("client")[0],lb=by("lb")[0],queue=by("queue")[0],worker=by("worker")[0],stream=by("stream")[0];
@@ -321,8 +326,9 @@ const COLORS={0:"#64748b",1:"#0e7490",2:"#2457d6",3:"#7044d4",4:"#c98a00",5:"#16
 function lanesSvg(){const D=P.design;if(!VS().layers||!D.nodes.length)return "";
   return BP.LAYERS.map(l=>{const ns=D.nodes.filter(n=>BP.layerOf(n)===l.k);if(!ns.length)return "";
     const x1=Math.min(...ns.map(n=>n.x))-20,y1=Math.min(...ns.map(n=>n.y))-34,x2=Math.max(...ns.map(n=>n.x+W))+20,y2=Math.max(...ns.map(n=>n.y+H))+16;
-    return `<g class="lane" data-lane="${l.k}"><rect x="${x1}" y="${y1}" width="${x2-x1}" height="${y2-y1}" rx="16" fill="${l.c}" fill-opacity=".06" stroke="${l.c}" stroke-opacity=".45"/><text x="${x1+14}" y="${y1+20}" fill="${l.c}">${l.ic} ${esc(l.l)} <tspan class="n" dx="6">${ns.length}</tspan></text></g>`}).join("")}
-function syncViewBtns(){$("#edgeBtn").textContent=EDGE_LABEL[VS().edge||"straight"];$("#layerBtn").setAttribute("aria-pressed",!!VS().layers)}
+    const lab=`${l.l.toUpperCase()}  ·  ${ns.length}`,tw=lab.length*7.2+44;
+    return `<g class="lane" data-lane="${l.k}"><rect class="lbox" x="${x1}" y="${y1}" width="${x2-x1}" height="${y2-y1}" rx="14" fill="${l.c}" fill-opacity=".045" stroke="${l.c}" stroke-opacity=".7"/><rect class="ltab" x="${x1+16}" y="${y1-12}" width="${tw}" height="24" rx="12" fill="#fff" stroke="${l.c}" stroke-width="1.5"/><text x="${x1+30}" y="${y1+4.5}" fill="${l.c}">${l.ic} ${esc(lab)}</text></g>`}).join("")}
+function syncViewBtns(){const st=VS().edge||"straight";$$("[data-edge]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.edge===st));$("#layerBtn").setAttribute("aria-pressed",!!VS().layers)}
 function renderCanvas(){
   const D=P.design,by=Object.fromEntries(D.nodes.map(n=>[n.id,n]));
   $("#lanes").innerHTML=lanesSvg();syncViewBtns();
@@ -331,10 +337,11 @@ function renderCanvas(){
   $("#nodes").innerHTML=D.nodes.map(n=>{const c=CATALOG[n.type]||CATALOG.service,col=COLORS[c.tier];const s=sel?.k==="n"&&sel.id===n.id;
     return `<g class="node${s?" sel":""}${connSrc===n.id?" src":""}" data-n="${n.id}" transform="translate(${n.x},${n.y})"><rect class="box" width="${W}" height="${H}" rx="12"/><rect width="5" height="${H-16}" x="0" y="8" rx="2" fill="${col}"/><text x="16" y="${H/2+7}" font-size="20">${c.ic}</text><text class="nm" x="46" y="25">${esc(trunc(n.name,22))}</text><text class="tc" x="46" y="42">${esc(trunc(n.tech,25))}</text></g>`}).join("");
   $("#emptyCanvas").hidden=D.nodes.length>0;
+  window.BPFlow?.apply();
 }
 const trunc=(s,n)=>s.length>n?s.slice(0,n-1)+"…":s;
 function fit(){const N=P.design.nodes;if(!N.length){view={x:20,y:60,k:1};applyView();return}
-  const r=svg.getBoundingClientRect();if(!r.width)return;const minX=Math.min(...N.map(n=>n.x))-(VS().layers?24:0),minY=Math.min(...N.map(n=>n.y))-(VS().layers?40:0),maxX=Math.max(...N.map(n=>n.x+W)),maxY=Math.max(...N.map(n=>n.y+H));
+  const r=svg.getBoundingClientRect();if(!r.width)return;const minX=Math.min(...N.map(n=>n.x))-(VS().layers?24:0),minY=Math.min(...N.map(n=>n.y))-(VS().layers?52:0),maxX=Math.max(...N.map(n=>n.x+W)),maxY=Math.max(...N.map(n=>n.y+H));
   const k=Math.min(1.3,Math.max(.25,Math.min((r.width-40)/(maxX-minX),(r.height-110)/(maxY-minY))));view={k,x:(r.width-(maxX-minX)*k)/2-minX*k,y:60+(r.height-80-(maxY-minY)*k)/2-minY*k};applyView()}
 function toWorld(e){const r=svg.getBoundingClientRect();return {x:(e.clientX-r.left-view.x)/view.k,y:(e.clientY-r.top-view.y)/view.k}}
 svg.addEventListener("pointerdown",e=>{
@@ -357,7 +364,7 @@ const zoomBy=f=>{const r=svg.getBoundingClientRect(),mx=r.width/2,my=r.height/2,
 $("#zIn").onclick=()=>zoomBy(1.2);$("#zOut").onclick=()=>zoomBy(1/1.2);$("#fitBtn").onclick=fit;
 function relayout(){if(VS().layers)BP.layoutLayers(P.design);else BP.layout(P.design)}
 $("#layoutBtn").onclick=()=>{snap();relayout();renderAll();fit();save()};
-$("#edgeBtn").onclick=()=>{const order=["straight","orthogonal","curved"];setEdge(order[(order.indexOf(VS().edge||"straight")+1)%3],true)};
+$$("[data-edge]").forEach(b=>b.onclick=()=>setEdge(b.dataset.edge,true));
 $("#layerBtn").onclick=()=>setLayers(!VS().layers,true);
 function setEdge(st,quiet){snap();VS().edge=st;renderCanvas();save();if(quiet)toast(`Connectors: ${st==="orthogonal"?"elbow (right angles)":st}`)}
 function setLayers(on,quiet){snap();VS().layers=on;if(on)BP.layoutLayers(P.design);renderAll();fit();save();if(quiet)toast(on?"Grouped into architecture layers":"Layers hidden")}
@@ -646,6 +653,8 @@ $("#dlgAI").addEventListener("close",()=>{const v=$("#dlgAI").returnValue;
 $("#tplChips").innerHTML=[["🚗 Ride-hailing",EXAMPLES[0]],["🔗 URL shortener",EXAMPLES[1]],["✨ RAG chatbot",EXAMPLES[2]],["🛒 E-commerce",EXAMPLES[3]],["💬 Chat app",EXAMPLES[4]],["🍜 Food delivery",EXAMPLES[5]]].map(([l,v])=>`<button class="btn sm" data-tpl="${esc(v)}">${l}</button>`).join("");
 $("#tplChips").addEventListener("click",e=>{const b=e.target.closest("[data-tpl]");if(b){send(b.dataset.tpl);mobileShow("chat")}});
 
+// ── bridge for the data-flow demo ──
+window.BPApp={get design(){return P.design},get profile(){return prof()},W,H,renderCanvas,mobileShow,say,toast,esc,toWorldView:()=>view,setFocusSel:id=>{sel=id?{k:"n",id}:null;renderCanvas()}};
 // ── boot ──
 renderPalette();syncMode();$("#pname").value=P.name;renderChat();renderAll();renderBoard();
 showTab(store.get("bp.tab","studio"));requestAnimationFrame(fit);addEventListener("resize",()=>{if(!drag)applyView()});

@@ -123,9 +123,47 @@ svg .edge.sel path{stroke:var(--signal);stroke-width:2.6}
 svg .edge .hit{stroke:transparent;stroke-width:14;fill:none;cursor:pointer}
 svg .edge text{font:10.5px var(--mono);fill:var(--ink-2)}
 svg .edge rect{fill:var(--paper)}
-svg .lane rect{stroke-width:1.5;stroke-dasharray:6 5}
-svg .lane text{font:700 12.5px var(--display);letter-spacing:.02em}
-svg .lane text tspan.n{font:500 11px var(--mono);fill:var(--ink-3)}
+svg .lane .lbox{stroke-width:2;stroke-dasharray:9 6}
+svg .lane text{font:700 11px var(--mono);letter-spacing:.08em}
+/* data-flow demo */
+.flowbtn{background:var(--signal)!important;color:#fff!important}
+svg.flowing .node:not(.inflow){opacity:.16;transition:opacity .3s}
+svg.flowing .edge:not(.inflow){opacity:.08;transition:opacity .3s}
+svg.flowing .lane{opacity:.55}
+svg .node.live rect.box{stroke:var(--signal);stroke-width:3.5;filter:drop-shadow(0 0 10px rgba(255,107,44,.75))}
+svg .node.done rect.box{stroke:var(--green);stroke-width:2.5}
+svg .node.blocked rect.box{stroke:var(--red);stroke-width:3.5;filter:drop-shadow(0 0 10px rgba(217,45,58,.7))}
+svg .node .badge{font:700 11px var(--mono)}
+svg .edge.hot path:not(.hit){stroke:var(--signal);stroke-width:3;stroke-dasharray:9 6;animation:flowdash .55s linear infinite;opacity:1}
+@keyframes flowdash{to{stroke-dashoffset:-15}}
+svg .ghost{stroke:var(--signal);stroke-width:2.5;stroke-dasharray:4 5;fill:none;opacity:.8}
+.flowpanel{position:absolute;right:10px;bottom:10px;z-index:6;width:min(400px,calc(100% - 20px));max-height:min(78%,640px);display:flex;flex-direction:column;background:var(--sheet);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 50px -16px rgba(20,33,61,.45);overflow:hidden}
+.fp-h{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.fp-h .row{margin:0}
+.fp-h select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--paper);min-width:0;flex:1}
+.fp-now{padding:12px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff7f2,#fff)}
+.fp-now .k{font:600 11px var(--mono);color:var(--signal);letter-spacing:.06em;text-transform:uppercase}
+.fp-now h4{margin:3px 0 4px;font:800 16px var(--display);display:flex;gap:8px;align-items:center}
+.fp-now p{margin:0 0 8px;font-size:13px;color:var(--ink-2)}
+.fp-now.bad{background:linear-gradient(180deg,#fdecee,#fff)}
+.fp-now.bad .k{color:var(--red)}
+.mets{display:flex;flex-direction:column;gap:4px}
+.met{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 8px;border-radius:8px;background:var(--paper);border:1px solid var(--line)}
+.met b{font:600 12px var(--mono);white-space:nowrap}
+.met.ok b{color:var(--green)}.met.warn b{color:var(--amber)}.met.bad{background:#fdecee;border-color:#f3b8bf}.met.bad b{color:var(--red)}
+.fp-list{flex:1;overflow-y:auto;padding:6px;scrollbar-width:thin;min-height:60px}
+.fp-step{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid transparent}
+.fp-step:hover{background:var(--soft)}
+.fp-step.cur{border-color:var(--signal);background:#fff4ee}
+.fp-step .n{font:600 11px var(--mono);color:var(--ink-3)}
+.fp-step .s{font:600 11px var(--mono)}
+.fp-step.done .n{color:var(--green)}
+.fp-score{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-top:1px solid var(--line);font:12px var(--mono);color:var(--ink-2)}
+.fp-score span{background:var(--soft);border-radius:999px;padding:2px 8px}
+.fp-score .g{color:var(--green)}.fp-score .r{color:var(--red)}
+.fp-ctl{display:flex;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
+.fp-ctl .btn{padding:6px 10px}
+@media(max-width:1000px){.flowpanel{left:10px;right:10px;width:auto;max-height:58%}}
 
 /* right spec panel */
 .stabs{display:flex;gap:2px;padding:8px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
@@ -285,14 +323,16 @@ dialog::backdrop{background:rgba(20,33,61,.35);backdrop-filter:blur(3px)}
     <div class="tools">
       <div class="grp"><button id="addBtn" aria-expanded="false">＋ Component</button><button id="connBtn" aria-pressed="false">↗ Connect</button><button id="layoutBtn">⇄ Tidy</button></div>
       <div class="grp"><button id="zOut" aria-label="Zoom out">−</button><span class="zoomv" id="zv">100%</span><button id="zIn" aria-label="Zoom in">＋</button><button id="fitBtn">Fit</button></div>
-      <div class="grp"><button id="edgeBtn" title="Connector style">╱ Straight</button><button id="layerBtn" aria-pressed="false" title="Group components into architecture layers">▤ Layers</button></div>
+      <div class="grp" role="group" aria-label="Connector style"><button data-edge="straight" title="Straight connectors">╱ Straight</button><button data-edge="orthogonal" title="Right-angle connectors">┐ Elbow</button><button data-edge="curved" title="Curved connectors">〜 Curved</button></div>
+      <div class="grp"><button id="layerBtn" aria-pressed="false" title="Group components into architecture layers">▤ Layers</button><button id="flowBtn" class="flowbtn" title="Animate a critical workflow through the design">▶ Data flow</button></div>
       <div class="grp"><button id="delBtn" title="Delete selected (Del)">🗑</button><button id="undoBtn" title="Undo (Ctrl+Z)">↶</button></div>
     </div>
     <div class="palette" id="palette" hidden></div>
-    <svg id="svg" aria-label="System design diagram"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8a97b3"/></marker><marker id="arrS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff6b2c"/></marker></defs><g id="world"><g id="lanes"></g><g id="edges"></g><g id="nodes"></g></g></svg>
+    <svg id="svg" aria-label="System design diagram"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8a97b3"/></marker><marker id="arrS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff6b2c"/></marker></defs><g id="world"><g id="lanes"></g><g id="edges"></g><g id="nodes"></g><g id="flowfx"></g></g></svg>
     <div class="empty-canvas" id="emptyCanvas"><div><h2>Talk it through. I'll draw it.</h2><p>Describe the system in the chat like you'd explain it to a colleague. Or start from a template.</p><div class="chips" id="tplChips" style="justify-content:center"></div></div></div>
     <div class="legend">── sync &nbsp; - - async &nbsp;·&nbsp; drag to move · scroll to zoom</div>
     <div class="hint" id="connHint" hidden>Click the source, then the target</div>
+    <section class="flowpanel" id="flowPanel" hidden aria-label="Data flow demo"></section>
   </div>
   <aside class="pane r" data-pane="spec">
     <div class="stabs" role="tablist" id="stabs"></div>
@@ -347,8 +387,9 @@ dialog::backdrop{background:rgba(20,33,61,.35);backdrop-filter:blur(3px)}
 <dialog id="dlgConfirm"><form class="dl" method="dialog"><h3 id="cfT">Are you sure?</h3><p class="sub" id="cfM"></p><div class="foot"><button class="btn" value="no">Cancel</button><button class="btn pri" value="yes" id="cfYes">Confirm</button></div></form></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="engine.js?v=6"></script>
-<script src="knowledge.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="engine.js?v=7"></script>
+<script src="knowledge.js?v=7"></script>
+<script src="app.js?v=7"></script>
+<script src="flow.js?v=7"></script>
 </body>
 </html>

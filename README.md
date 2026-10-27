@@ -12,6 +12,11 @@ System design and delivery planning in one place. Describe a system in plain Eng
 - **GenAI & models:** model routing (Claude Haiku / Sonnet / Opus, self-hosted option), private access and governance, plus practices against hallucination: grounding, citations, abstention, faithfulness checks, injection defence and evals.
 - **Tests & edge cases:** generated per design (functional, negative, edge, performance, resilience, security, compliance, GenAI), plus your own.
 
+## ▶ Data flow demo
+Pick a critical workflow (answer a customer question with RAG, core request, payment, background job, document ingestion) and watch it play on the diagram: a dot travels between components, each one lights up as it's reached, and a panel explains what happens there with guardrail and health metrics. Try the scenarios: **PII in the question**, **prompt-injection attack** (blocked at the guardrail), **low-confidence answer** (abstains instead of hallucinating) and **model outage** (fails over). Metric values are illustrative.
+
+Connectors can be **straight**, **elbow** or **curved**, and components are grouped into dashed, labelled **architecture layers**.
+
 ## Delivery Board
 - Paste user stories in your own words; each is broken into small tasks with story points and acceptance criteria.
 - **Backlog from design:** one epic per service plus platform and client epics.
