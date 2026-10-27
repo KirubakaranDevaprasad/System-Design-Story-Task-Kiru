@@ -7,6 +7,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v)
 const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2600)};
 const {CATALOG,uid,fmtN,fmtBytes}=BP;
 const W=196,H=58;
+const titleCase=s=>s.replace(/\b\w/g,c=>c.toUpperCase());
 const AVC=["#2457d6","#ff6b2c","#169a5a","#7044d4","#c98a00","#d92d3a","#0e7490","#be185d"];
 const EPC=["#2457d6","#ff6b2c","#169a5a","#7044d4","#c98a00","#0e7490","#be185d","#4d7c0f"];
 const STATUSES=[["todo","To do"],["doing","In progress"],["review","Review"],["done","Done"]];
@@ -162,6 +163,7 @@ function addFromText(text){
   const tech=BP.findTech(ph);let type=tech?.type||BP.findType(ph);
   let name=null;
   if(!type||(type==="service"&&!/^(a\s+)?service$/i.test(ph))){type="service";name=titleCase(ph.replace(/\b(service|microservice)\b/i,"").trim())+" service"}
+  else if(!tech&&ph.split(/\s+/).length>=2&&ph.length<40&&["ml","worker","external","notify","scheduler","nosql","sql","search","llm"].includes(type))name=titleCase(ph);
   if(type==="sql"&&/^(a\s+)?(database|db)$/i.test(ph))type=P.design.nodes.some(n=>n.type==="sql")?"nosql":"sql";
   const n=addNode(type,name||(tech?CATALOG[type].l:undefined),tech?.tech);
   if(type==="llm"||/ai|llm|assistant|chatbot/i.test(ph)){const pf=prof();pf.genai=true;P.design.source=(P.design.source||"")+" llm";BP.harden(P.design,pf).forEach(placeNew);BP.enrich(P.design,P.design.source);renderAll();save()}

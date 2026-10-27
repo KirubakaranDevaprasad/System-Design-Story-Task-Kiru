@@ -158,7 +158,8 @@ function detectDomain(t){return DOMAINS.find(d=>d.re.test(t))||null}
 function detectFeatures(t){return Object.entries(FEATURES).filter(([,f])=>f.re.test(t)).map(([k])=>k)}
 function detectTech(t){
   const out={};
-  for(const [type,c] of Object.entries(CATALOG)){for(const tech of c.tech){const key=tech.toLowerCase().split(/[ (+]/)[0];if(key.length>2&&new RegExp("\\b"+key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(t)){out[type]=tech}}}
+  for(const [type,c] of Object.entries(CATALOG)){for(const tech of c.tech){if(techTokens(tech).some(w=>new RegExp("\\b"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(t))){out[type]=tech}}}
+  for(const [k,v] of Object.entries(TECH_ALIAS)){if(new RegExp("(^|[^a-z0-9])"+k+"([^a-z0-9]|$)").test(t.toLowerCase())){for(const [type,c] of Object.entries(CATALOG))if(c.tech.includes(v))out[type]=v}}
   const cloud=/\baws\b|amazon web/i.test(t)?"aws":/\bgcp\b|google cloud/i.test(t)?"gcp":/azure/i.test(t)?"azure":null;
   return {pick:out,cloud};
 }
@@ -286,10 +287,19 @@ function findType(phrase){
   for(const k of ["guard","rerank","eval","kms","waf","llm","vector","geo","ws","cdn","lb","gateway","cache","queue","stream","scheduler","notify","search","blob","dwh","monitor","ml","auth","external","nosql","sql","worker","client"]){if(CATALOG[k]&&CATALOG[k].alias.test(p))return k}
   return null;
 }
+const GENERIC=/^(apache|amazon|aws|google|azure|cloud|gcp|self|hosted|custom|service|services|api|db|blob|storage|load|balancer|gateway|jobs?|model|web|app|the|and|with|feature|store|front|door|serve|rules)$/;
+function techTokens(tech){return tech.toLowerCase().replace(/[()+/,]/g," ").split(/\s+/).filter(w=>w.length>2&&!GENERIC.test(w))}
+const TECH_ALIAS={postgres:"PostgreSQL",postgresql:"PostgreSQL",pg:"PostgreSQL",mysql:"MySQL",mongo:"MongoDB",mongodb:"MongoDB",s3:"Amazon S3",gcs:"Google Cloud Storage",dynamo:"DynamoDB",es:"Elasticsearch",opensearch:"OpenSearch",rabbit:"RabbitMQ",rabbitmq:"RabbitMQ",pubsub:"Google Pub/Sub",kinesis:"Amazon Kinesis",lambda:"AWS Lambda",bigquery:"BigQuery",snowflake:"Snowflake",cognito:"Amazon Cognito",auth0:"Auth0",stripe:"Stripe",twilio:"Twilio",claude:"Claude API",pinecone:"Pinecone",pgvector:"pgvector",memcached:"Memcached",cloudfront:"CloudFront",cloudflare:"Cloudflare",nginx:"NGINX",kong:"Kong",datadog:"Datadog",grafana:"Prometheus + Grafana",vault:"HashiCorp Vault",kms:"AWS KMS + CloudHSM"};
+function aliasTech(p){for(const [k,v] of Object.entries(TECH_ALIAS)){if(new RegExp("(^|[^a-z0-9])"+k+"([^a-z0-9]|$)").test(p)){for(const [type,c] of Object.entries(CATALOG))if(c.tech.includes(v))return {type,tech:v}}}return null}
 function findTech(phrase){
-  const p=phrase.toLowerCase();
-  for(const [type,c] of Object.entries(CATALOG))for(const tech of c.tech){const key=tech.toLowerCase().split(/[ (+]/)[0];if(key.length>2&&p.includes(key))return {type,tech}}
-  return null;
+  const p=" "+phrase.toLowerCase().replace(/[^a-z0-9.\- ]/g," ")+" ";
+  const al=aliasTech(p);if(al)return al;
+  let best=null,score=0;
+  for(const [type,c] of Object.entries(CATALOG))for(const tech of c.tech){
+    if(p.includes(" "+tech.toLowerCase()+" "))return {type,tech};
+    const hit=techTokens(tech).filter(w=>p.includes(" "+w+" ")||p.includes(" "+w)).length;
+    if(hit>score){score=hit;best={type,tech}}}
+  return best;
 }
 
 // ── Stories → tasks ──
