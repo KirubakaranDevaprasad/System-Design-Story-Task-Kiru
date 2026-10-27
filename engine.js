@@ -37,7 +37,7 @@ const TYPE_ORDER=Object.keys(CATALOG);
 // s: services [name, desc]; f: default features; e: entities; a: APIs; act: actions/user/day; kb: avg write size; rw: reads per write; db: primary store
 const DOMAINS=[
  {k:"llm",re:/chatbot|\bllm\b|\brag\b|ai assistant|copilot|genai|gen ai|gpt|claude|ai agent/,n:"AI assistant (RAG)",
-  s:[["Chat API","Conversations, streaming responses and history."],["Retrieval service","Embeds the question and fetches relevant chunks."],["Ingestion pipeline","Parses, chunks and embeds documents."],["Guardrails","Input/output checks, PII redaction, rate limits."]],
+  s:[["Chat API","Conversations, streaming responses and history."],["Retrieval service","Embeds the question and fetches relevant chunks."],["Ingestion pipeline","Parses, chunks and embeds documents."]],
   f:["llm","vector","blob","queue","cache","monitor"],db:"sql",act:15,kb:4,rw:2,
   e:[["Conversation","id, user_id, title, created_at"],["Message","conversation_id, role, content, tokens, ts"],["Chunk","doc_id, chunk_id, text, embedding"]],
   a:[["POST","/v1/chat","Send a message (streams the reply)"],["POST","/v1/documents","Upload a document for retrieval"],["GET","/v1/conversations/{id}","History"]]},
@@ -120,23 +120,23 @@ const DOMAINS=[
 
 // feature → components it brings
 const FEATURES={
-  realtime:{re:/real.?time|live|tracking|track |instant|websocket/,why:"Live updates over persistent connections"},
-  geo:{re:/location|nearby|geo|map|gps|distance/,why:"Fast nearby lookups"},
-  payment:{re:/pay|checkout|billing|subscription|charge/,why:"Charging customers via a payment provider"},
+  realtime:{re:/real.?time|\blive\b|tracking|\btrack\b|instant|websocket/,why:"Live updates over persistent connections"},
+  geo:{re:/location|nearby|\bgeo|\bgps\b|distance/,why:"Fast nearby lookups"},
+  payment:{re:/\bpay|checkout|billing|subscription|\bcharge/,why:"Charging customers via a payment provider"},
   notify:{re:/notif|push|email|sms|alert/,why:"Push, email and SMS"},
-  blob:{re:/upload|image|photo|video|file|media|attachment|document/,why:"Large files live in object storage"},
+  blob:{re:/upload|image|photo|video|\bfiles?\b|media|attachment|documents?\b/,why:"Large files live in object storage"},
   search:{re:/search|discover|filter|query/,why:"Full-text and faceted search"},
   recommend:{re:/recommend|personaliz|for you|suggest/,why:"Personalised ranking"},
   analytics:{re:/analytic|dashboard|report|insight|metric|kpi/,why:"Events flow to the warehouse for reporting"},
-  cache:{re:/fast|low latency|cache|read.heavy|millisecond/,why:"Hot reads from memory"},
+  cache:{re:/\bfast\b|low latency|cache|read.heavy|millisecond/,why:"Hot reads from memory"},
   queue:{re:/async|background|queue|retry|batch/,why:"Async work with retries"},
-  stream:{re:/event|stream|kafka|audit trail/,why:"Event backbone"},
+  stream:{re:/\bevents?\b|\bstream|kafka|audit trail/,why:"Event backbone"},
   scheduler:{re:/schedul|cron|daily job|nightly|reminder/,why:"Timed jobs"},
   llm:{re:/\bai\b|llm|gpt|claude|genai|summar|chatbot/,why:"Generative AI features"},
-  vector:{re:/semantic|embedding|rag|similar/,why:"Semantic retrieval"},
+  vector:{re:/semantic|embedding|\brag\b|similar/,why:"Semantic retrieval"},
   fraud:{re:/fraud|risk|anomal/,why:"Risk scoring"},
   audit:{re:/audit|complian|regulat|gdpr|hipaa|pci/,why:"Compliance and audit trail"},
-  maps:{re:/maps?|route|eta|direction/,why:"Routing and ETAs from a maps provider"},
+  maps:{re:/\bmaps?\b|\brout(e|ing)\b|\beta\b|directions/,why:"Routing and ETAs from a maps provider"},
   multiregion:{re:/multi.?region|global|worldwide|geo.?distributed|across (countries|regions)/,why:"Serve users from the nearest region"}
 };
 
@@ -276,7 +276,7 @@ function capacity(inp,multi){
 function layout(design){
   const cols={};design.nodes.forEach(n=>{const tier=CATALOG[n.type]?.tier??3;(cols[tier]=cols[tier]||[]).push(n)});
   const max=Math.max(...Object.values(cols).map(c=>c.length));
-  Object.entries(cols).forEach(([tier,list])=>{const off=(max-list.length)*48;list.forEach((n,i)=>{n.x=40+tier*240;n.y=40+off+i*96})});
+  Object.entries(cols).forEach(([tier,list])=>{const off=(max-list.length)*48;list.forEach((n,i)=>{n.x=40+tier*260;n.y=40+off+i*96})});
   return design;
 }
 

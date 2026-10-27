@@ -6,7 +6,7 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
 const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2600)};
 const {CATALOG,uid,fmtN,fmtBytes}=BP;
-const W=176,H=58;
+const W=196,H=58;
 const AVC=["#2457d6","#ff6b2c","#169a5a","#7044d4","#c98a00","#d92d3a","#0e7490","#be185d"];
 const EPC=["#2457d6","#ff6b2c","#169a5a","#7044d4","#c98a00","#0e7490","#be185d","#4d7c0f"];
 const STATUSES=[["todo","To do"],["doing","In progress"],["review","Review"],["done","Done"]];
@@ -118,12 +118,12 @@ function newDesign(text){
   snap();
   const d=BP.buildDesign(text);const prof=BP.profileOf(text,d);BP.harden(d,prof);BP.layout(d);
   P.design={nodes:d.nodes,edges:d.edges,doc:d.doc,inputs:d.inputs,multi:d.multi,domain:d.domain,source:text};BP.enrich(P.design,text);
-  if(P.name==="Untitled design"||/\(earlier\)$/.test(P.name)||hasDesign())P.name=d.name;$("#pname").value=P.name;
+  if(prof.industry==="banking"&&!/bank/i.test(d.name))d.name="Banking "+d.name;if(P.name==="Untitled design"||/\(earlier\)$/.test(P.name)||hasDesign())P.name=d.name;$("#pname").value=P.name;
   sel=null;renderAll();fit();save();
   const c=BP.capacity(d.inputs,d.multi),svc=d.nodes.filter(n=>n.type==="service");
   const db=d.nodes.find(n=>n.type==="sql"||n.type==="nosql");
   const extras=d.nodes.filter(n=>["cache","queue","stream","search","geo","ws","ml","llm","vector","blob","notify"].includes(n.type)).map(n=>n.name.toLowerCase());
-  say("b",`Here's a first cut of a **${d.name}** with ${d.nodes.length} components.\n\n**Core services:** ${svc.map(s=>s.name).join(", ")}.\n**Data:** ${db?db.name+" on "+db.tech:"—"}${extras.length?`, plus ${extras.slice(0,6).join(", ")}`:""}.\n**Rough load:** ~${fmtN(d.inputs.dau)} daily users → ~${fmtN(c.peak)} requests/sec at peak, ~${fmtBytes(c.storYr)} of new data a year.\n\n${prof.industry==="banking"?"\n**Banking-grade:** added WAF, HSM-backed keys and an immutable audit log; security controls are in the Security tab.":""}${prof.genai?"\n**GenAI:** added guardrails with PII redaction, a re-ranker and LLM evals. Model choice and anti-hallucination practices are in the GenAI & models tab.":""}
+  say("b",`Here's a first cut of ${/^[aeiou]/i.test(d.name)?"an":"a"} **${d.name}** with ${d.nodes.length} components.\n\n**Core services:** ${svc.map(s=>s.name).join(", ")}.\n**Data:** ${db?db.name+" on "+db.tech:"—"}${extras.length?`, plus ${extras.slice(0,6).join(", ")}`:""}.\n**Rough load:** ~${fmtN(d.inputs.dau)} daily users → ~${fmtN(c.peak)} requests/sec at peak, ~${fmtBytes(c.storYr)} of new data a year.\n\n${prof.industry==="banking"?"\n**Banking-grade:** added WAF, HSM-backed keys and an immutable audit log; security controls are in the Security tab.":""}${prof.genai?"\n**GenAI:** added guardrails with PII redaction, a re-ranker and LLM evals. Model choice and anti-hallucination practices are in the GenAI & models tab.":""}
 
 A few questions to sharpen it:`);
   quick=[{lab:"How many daily users?"},...["100K","1M","10M","100M"].map(v=>({l:v+" users",v:v+" daily users"})),{lab:"Traffic shape"},{l:"Read-heavy",v:"it's read-heavy"},{l:"Write-heavy",v:"it's write-heavy"},{lab:"Consistency & reach"},{l:"Strong consistency",v:"needs strong consistency"},{l:"Eventual is fine",v:"eventual consistency is fine"},{l:"Multi-region",v:"make it multi-region"}];
@@ -155,7 +155,7 @@ function smartLink(n){
     case "client":link(n,lb||gw,"HTTPS");break;
     default:link(svc[0],n,"")}
 }
-function placeNew(n){const tier=CATALOG[n.type].tier;const same=P.design.nodes.filter(x=>x!==n&&(CATALOG[x.type]?.tier)===tier);n.x=40+tier*240;n.y=same.length?Math.max(...same.map(s=>s.y))+96:40}
+function placeNew(n){const tier=CATALOG[n.type].tier;const same=P.design.nodes.filter(x=>x!==n&&(CATALOG[x.type]?.tier)===tier);n.x=40+tier*260;n.y=same.length?Math.max(...same.map(s=>s.y))+96:40}
 function addNode(type,name,tech,desc){snap();const c=CATALOG[type];const n={id:uid(),type,name:name||c.l,tech:tech||c.tech[0],desc:desc||"",notes:""};P.design.nodes.push(n);placeNew(n);smartLink(n);sel={k:"n",id:n.id};renderAll();save();return n}
 function addFromText(text){
   const ph=text.replace(/^(please\s+)?(also\s+)?(add|include|introduce|put in|plus|we need|need)\s+(an?\s+|the\s+|some\s+)?/i,"").replace(/[.!]$/,"").trim();
@@ -290,7 +290,7 @@ function renderCanvas(){
   $("#edges").innerHTML=D.edges.map(e=>{const a=by[e.from],b=by[e.to];if(!a||!b)return"";const {p,mx,my}=edgePath(a,b);const s=sel?.k==="e"&&sel.id===e.id;const lw=Math.max(0,e.label.length*6.4+10);
     return `<g class="edge${e.async?" async":""}${s?" sel":""}" data-e="${e.id}"><path d="${p}" marker-end="url(#${s?"arrS":"arr"})"/><path class="hit" d="${p}"/>${e.label?`<rect x="${mx-lw/2}" y="${my-9}" width="${lw}" height="16" rx="4"/><text x="${mx}" y="${my+3}" text-anchor="middle">${esc(e.label)}</text>`:""}</g>`}).join("");
   $("#nodes").innerHTML=D.nodes.map(n=>{const c=CATALOG[n.type]||CATALOG.service,col=COLORS[c.tier];const s=sel?.k==="n"&&sel.id===n.id;
-    return `<g class="node${s?" sel":""}${connSrc===n.id?" src":""}" data-n="${n.id}" transform="translate(${n.x},${n.y})"><rect class="box" width="${W}" height="${H}" rx="12"/><rect width="5" height="${H-16}" x="0" y="8" rx="2" fill="${col}"/><text x="16" y="${H/2+7}" font-size="20">${c.ic}</text><text class="nm" x="46" y="25">${esc(trunc(n.name,19))}</text><text class="tc" x="46" y="42">${esc(trunc(n.tech,22))}</text></g>`}).join("");
+    return `<g class="node${s?" sel":""}${connSrc===n.id?" src":""}" data-n="${n.id}" transform="translate(${n.x},${n.y})"><rect class="box" width="${W}" height="${H}" rx="12"/><rect width="5" height="${H-16}" x="0" y="8" rx="2" fill="${col}"/><text x="16" y="${H/2+7}" font-size="20">${c.ic}</text><text class="nm" x="46" y="25">${esc(trunc(n.name,22))}</text><text class="tc" x="46" y="42">${esc(trunc(n.tech,25))}</text></g>`}).join("");
   $("#emptyCanvas").hidden=D.nodes.length>0;
 }
 const trunc=(s,n)=>s.length>n?s.slice(0,n-1)+"…":s;
