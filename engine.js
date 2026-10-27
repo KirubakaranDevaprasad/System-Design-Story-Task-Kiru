@@ -371,5 +371,42 @@ function assign(tasks,team,onlyUnassigned){
   return load;
 }
 
-global.BP={CATALOG,TYPE_ORDER,DOMAINS,FEATURES,SKILLS,uid,fmtN,fmtBytes,parseScale,detectDomain,detectFeatures,buildDesign,buildDoc,capacity,layout,findType,findTech,parseStories,breakDown,backlogFromDesign,assign,storyPoints};
+// ── Architecture layers (grouped layout) ──
+const LAYERS=[
+ {k:"client",l:"Clients",ic:"📱",c:"#64748b",types:["client"]},
+ {k:"security",l:"Security layer",ic:"🛡️",c:"#d92d3a",types:["waf","auth","guard","kms"]},
+ {k:"edge",l:"Edge & API layer",ic:"🚪",c:"#0e7490",types:["cdn","lb","gateway","ws"]},
+ {k:"app",l:"Application layer",ic:"🧩",c:"#2457d6",types:["service"]},
+ {k:"ai",l:"LLM / Agent layer",ic:"✨",c:"#7044d4",types:["llm","rerank","ml"]},
+ {k:"async",l:"Messaging & async layer",ic:"📨",c:"#c98a00",types:["queue","stream","worker","scheduler","notify"]},
+ {k:"data",l:"Data layer",ic:"🗄️",c:"#169a5a",types:["sql","nosql","cache","search","blob","vector","geo","dwh"]},
+ {k:"integ",l:"External integrations",ic:"🔌",c:"#8a5a00",types:["external"]},
+ {k:"obs",l:"Observability & evaluation",ic:"📈",c:"#be185d",types:["monitor","eval"]}
+];
+function layerOf(n){
+  if(n.layer&&LAYERS.some(l=>l.k===n.layer))return n.layer;
+  if(/audit/i.test(n.name))return "security";
+  if(n.type==="service"&&/agent|retriev|ingest|prompt|llm|orchestrat|embed|rag\b|copilot/i.test(n.name))return "ai";
+  if(n.type==="worker"&&/ingest|embed/i.test(n.name))return "ai";
+  return (LAYERS.find(l=>l.types.includes(n.type))||LAYERS[3]).k;
+}
+function layoutLayers(design,perRow){
+  perRow=perRow||5;const NW=196,NH=58,GX=50,GY=34,LGAP=46,TOP=40;
+  const lanes=LAYERS.map(l=>({l,ns:design.nodes.filter(n=>layerOf(n)===l.k)})).filter(x=>x.ns.length);
+  const nb={};design.edges.forEach(e=>{(nb[e.from]=nb[e.from]||[]).push(e.to);(nb[e.to]=nb[e.to]||[]).push(e.from)});
+  const order=()=>{const idx={};lanes.forEach(({ns})=>ns.forEach((n,i)=>idx[n.id]=(i+.5)/ns.length));
+    lanes.forEach(({ns})=>{const bc=n=>{const ps=(nb[n.id]||[]).map(id=>idx[id]).filter(v=>v!=null);return ps.length?ps.reduce((a,b)=>a+b,0)/ps.length:idx[n.id]};const keyed=ns.map(n=>[n,bc(n)]);keyed.sort((a,b)=>a[1]-b[1]);keyed.forEach(([n],i)=>{ns[i]=n;idx[n.id]=(i+.5)/ns.length})})};
+  order();order();
+  const widest=Math.max(...lanes.map(x=>Math.min(perRow,x.ns.length)))*(NW+GX)-GX;
+  let y=TOP;
+  lanes.forEach(({ns})=>{
+    y+=30;
+    for(let r=0;r*perRow<ns.length;r++){const row=ns.slice(r*perRow,(r+1)*perRow);const w=row.length*(NW+GX)-GX;const x0=60+(widest-w)/2;
+      row.forEach((n,i)=>{n.x=Math.round(x0+i*(NW+GX));n.y=y});y+=NH+GY}
+    y+=LGAP-GY;
+  });
+  design.view=Object.assign({edge:"straight"},design.view||{},{layers:true});
+  return design;
+}
+global.BP={LAYERS,layerOf,layoutLayers,CATALOG,TYPE_ORDER,DOMAINS,FEATURES,SKILLS,uid,fmtN,fmtBytes,parseScale,detectDomain,detectFeatures,buildDesign,buildDoc,capacity,layout,findType,findTech,parseStories,breakDown,backlogFromDesign,assign,storyPoints};
 })(window);

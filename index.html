@@ -123,6 +123,9 @@ svg .edge.sel path{stroke:var(--signal);stroke-width:2.6}
 svg .edge .hit{stroke:transparent;stroke-width:14;fill:none;cursor:pointer}
 svg .edge text{font:10.5px var(--mono);fill:var(--ink-2)}
 svg .edge rect{fill:var(--paper)}
+svg .lane rect{stroke-width:1.5;stroke-dasharray:6 5}
+svg .lane text{font:700 12.5px var(--display);letter-spacing:.02em}
+svg .lane text tspan.n{font:500 11px var(--mono);fill:var(--ink-3)}
 
 /* right spec panel */
 .stabs{display:flex;gap:2px;padding:8px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
@@ -282,10 +285,11 @@ dialog::backdrop{background:rgba(20,33,61,.35);backdrop-filter:blur(3px)}
     <div class="tools">
       <div class="grp"><button id="addBtn" aria-expanded="false">＋ Component</button><button id="connBtn" aria-pressed="false">↗ Connect</button><button id="layoutBtn">⇄ Tidy</button></div>
       <div class="grp"><button id="zOut" aria-label="Zoom out">−</button><span class="zoomv" id="zv">100%</span><button id="zIn" aria-label="Zoom in">＋</button><button id="fitBtn">Fit</button></div>
+      <div class="grp"><button id="edgeBtn" title="Connector style">╱ Straight</button><button id="layerBtn" aria-pressed="false" title="Group components into architecture layers">▤ Layers</button></div>
       <div class="grp"><button id="delBtn" title="Delete selected (Del)">🗑</button><button id="undoBtn" title="Undo (Ctrl+Z)">↶</button></div>
     </div>
     <div class="palette" id="palette" hidden></div>
-    <svg id="svg" aria-label="System design diagram"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8a97b3"/></marker><marker id="arrS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff6b2c"/></marker></defs><g id="world"><g id="edges"></g><g id="nodes"></g></g></svg>
+    <svg id="svg" aria-label="System design diagram"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8a97b3"/></marker><marker id="arrS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff6b2c"/></marker></defs><g id="world"><g id="lanes"></g><g id="edges"></g><g id="nodes"></g></g></svg>
     <div class="empty-canvas" id="emptyCanvas"><div><h2>Talk it through. I'll draw it.</h2><p>Describe the system in the chat like you'd explain it to a colleague. Or start from a template.</p><div class="chips" id="tplChips" style="justify-content:center"></div></div></div>
     <div class="legend">── sync &nbsp; - - async &nbsp;·&nbsp; drag to move · scroll to zoom</div>
     <div class="hint" id="connHint" hidden>Click the source, then the target</div>
@@ -343,8 +347,8 @@ dialog::backdrop{background:rgba(20,33,61,.35);backdrop-filter:blur(3px)}
 <dialog id="dlgConfirm"><form class="dl" method="dialog"><h3 id="cfT">Are you sure?</h3><p class="sub" id="cfM"></p><div class="foot"><button class="btn" value="no">Cancel</button><button class="btn pri" value="yes" id="cfYes">Confirm</button></div></form></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="engine.js?v=5"></script>
-<script src="knowledge.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="engine.js?v=6"></script>
+<script src="knowledge.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

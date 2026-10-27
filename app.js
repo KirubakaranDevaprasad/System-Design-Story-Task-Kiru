@@ -75,6 +75,7 @@ function engineTurn(text){
   if(!hasDesign()||(isNew&&(BP.detectDomain(t)||t.split(/\s+/).length>5))){newDesign(text);return}
   if(/^(help|what can you do|commands)/.test(t)){say("b",helpText());return}
   if(/^undo\b/.test(t)){undo();say("b","Undid the last change.");return}
+  if(viewCommands(t))return;
   if(/test case|edge case|test plan|qa plan|how (do|should) we test/.test(t)){openSpecTab("tests");const n=BP.testCases(prof(),P.design).length;say("b",`I generated **${n} test cases** covering functional, negative, edge, performance, resilience and security${prof().genai?", plus GenAI checks for grounding, injection, privacy and regressions":""}. They're in the **Tests & edge cases** tab, where you can add your own.`);followups();return}
   if(/\b(detail(ed)?|deep.?dive|low.?level|lld|zoom into|internals?)\b/.test(t)){const nm=t.replace(/.*?(detail(ed)? design|deep.?dive|low.?level design|lld|zoom into|internals)\s*(of|for|into|on)?\s*(the\s+)?/,"").replace(/[?.!]$/,"").trim();
     const n=nm&&!/^(design|the design|it|everything|all|system)?$/.test(nm)?P.design.nodes.find(x=>x.name.toLowerCase().includes(nm))||P.design.nodes.find(x=>x.type===(BP.findTech(nm)?.type||BP.findType(nm))):null;
@@ -105,7 +106,7 @@ The full write-up is in the Detailed design tab.`)}
   if(/explain|walk me through|how does|flow|overview|summar/.test(t)){say("b",explain());followups();return}
   if(/bottleneck|risk|fail|weak|single point|spof|what could go wrong/.test(t)){say("b",risks());followups();return}
   if(/capacity|estimate|how many server|qps|storage|bandwidth|cost/.test(t)){say("b",capText());followups();return}
-  if(/tidy|layout|arrange|clean up/.test(t)){snap();BP.layout(P.design);renderAll();fit();save();say("b","Tidied the layout into tiers: clients → edge → gateway → services → async → data → analytics.");return}
+  if(/tidy|re-?layout|arrange|clean up/.test(t)&&!/layer|group/.test(t)){snap();relayout();renderAll();fit();save();say("b",VS().layers?"Re-arranged everything neatly inside its layer.":"Tidied the layout into tiers: clients → edge → gateway → services → async → data → analytics.");return}
   const feats=BP.detectFeatures(t);
   if(feats.length){addFeatures(feats);return}
   if(BP.detectDomain(t)){newDesign(text);return}
@@ -113,12 +114,36 @@ The full write-up is in the Detailed design tab.`)}
 }
 const prof=()=>P.design.profile||(P.design.profile=BP.profileOf(P.design.source||"",P.design));
 function openSpecTab(k){renderSpec(k);mobileShow("spec")}
-function helpText(){return "Here's what I understand:\n• **Describe a system**: \"Design a food delivery app for 2M users with live tracking\"\n• **Add / remove**: \"add Kafka\", \"add a notifications service\", \"remove the cache\"\n• **Swap tech**: \"use Cassandra instead of Postgres\", \"switch to GCP\"\n• **Scale**: \"10M daily users\", \"5K requests per second\", \"make it multi-region\"\n• **Shape**: \"it's read-heavy\", \"needs strong consistency\"\n• **Understand**: \"explain the flow\", \"bottlenecks\", \"capacity\"\n• **Go deeper**: \"detailed design of the payment service\", \"test cases\", \"which model should we use\", \"hallucination best practices\", \"make it banking grade\"\n• **Deliver**: \"break this into tasks\" builds the backlog on the Delivery Board\n\nYou can also drag, connect and edit anything directly on the diagram."}
+function viewCommands(t){
+  const done=[];
+  const mv=t.match(/move\s+(?:the\s+)?(.+?)\s+(?:to|into|under)\s+(?:the\s+)?(.+?)\s+(?:layer|group|tier)/);
+  if(mv){const n=P.design.nodes.find(x=>x.name.toLowerCase().includes(mv[1].trim()));const lk=(LAYER_WORDS.find(([,re])=>re.test(mv[2]))||[])[0];
+    if(!n){say("b",`I couldn't find "${mv[1]}" in the design.`);return true}if(!lk){say("b",`I don't know a "${mv[2]}" layer. Layers: ${BP.LAYERS.map(l=>l.l).join(", ")}.`);return true}
+    snap();n.layer=lk;if(!VS().layers)VS().layers=true;BP.layoutLayers(P.design);renderAll();fit();save();say("b",`Moved **${n.name}** into the ${BP.LAYERS.find(l=>l.k===lk).l}.`);return true}
+  const wantStraight=/straight|direct line|no curv|not curv|instead of (the )?curv|without curv|less curv/.test(t)&&/line|connector|arrow|edge|link|curv/.test(t);
+  const wantElbow=/elbow|orthogonal|right.?angle|90.?degree|step(ped)? line|manhattan/.test(t);
+  const wantCurve=!wantStraight&&!wantElbow&&/\b(curv(e|ed|y)|bezier|smooth)\b/.test(t)&&/line|connector|arrow|edge|link/.test(t);
+  const wantLayers=/\b(group(ed|ing|s)?|layer(ed|s)?|swim ?lanes?|lanes|tiers?)\b/.test(t)&&!/ungroup|hide|remove|turn off|without|no (layer|group)|flat/.test(t)&&!/^(add|include)\b/.test(t);
+  const noLayers=/ungroup|hide (the )?(layers|groups|lanes)|no (layers|groups)|turn off (layers|groups)|remove (the )?(layers|groups|lanes)|flat layout/.test(t);
+  if(!(wantStraight||wantElbow||wantCurve||wantLayers||noLayers))return false;
+  if(!hasDesign()){say("b","Describe a system first, then I can restyle it. New designs already use straight connectors and architecture layers.");return true}
+  snap();
+  if(wantStraight){VS().edge="straight";done.push("switched every connector to **straight lines**")}
+  if(wantElbow){VS().edge="orthogonal";done.push("switched connectors to **right-angle elbows**")}
+  if(wantCurve){VS().edge="curved";done.push("switched connectors to **curves**")}
+  if(wantLayers){VS().layers=true;BP.layoutLayers(P.design);const used=BP.LAYERS.filter(l=>P.design.nodes.some(n=>BP.layerOf(n)===l.k));done.push(`grouped the design into **${used.length} layers**: ${used.map(l=>l.l).join(", ")}`)}
+  if(noLayers){VS().layers=false;BP.layout(P.design);done.push("removed the layer groups and laid it out in tiers")}
+  renderAll();fit();save();
+  say("b",done.map((d,i)=>i?d:d.charAt(0).toUpperCase()+d.slice(1)).join(", and ")+"."+(wantLayers?"\n\nTo change where something sits, say \"move Re-ranker to the LLM layer\". Use the toolbar to switch connector styles any time.":""));
+  quick=[{l:"Elbow connectors",v:"use right-angle connectors"},{l:"Straight connectors",v:"use straight lines"},VS().layers?{l:"Hide layers",v:"hide the layers"}:{l:"Group into layers",v:"group into layers"},{l:"Explain the flow",v:"explain the flow"}];renderChat();
+  return true;
+}
+function helpText(){return "Here's what I understand:\n• **Describe a system**: \"Design a food delivery app for 2M users with live tracking\"\n• **Add / remove**: \"add Kafka\", \"add a notifications service\", \"remove the cache\"\n• **Swap tech**: \"use Cassandra instead of Postgres\", \"switch to GCP\"\n• **Scale**: \"10M daily users\", \"5K requests per second\", \"make it multi-region\"\n• **Shape**: \"it's read-heavy\", \"needs strong consistency\"\n• **Understand**: \"explain the flow\", \"bottlenecks\", \"capacity\"\n• **Layout**: \"use straight lines\", \"right-angle connectors\", \"group into layers\", \"move the cache to the data layer\"\n• **Go deeper**: \"detailed design of the payment service\", \"test cases\", \"which model should we use\", \"hallucination best practices\", \"make it banking grade\"\n• **Deliver**: \"break this into tasks\" builds the backlog on the Delivery Board\n\nYou can also drag, connect and edit anything directly on the diagram."}
 function newDesign(text){
   if(hasDesign()){const old=JSON.parse(JSON.stringify(P));old.id=uid();old.name=P.name+" (earlier)";projects[old.id]=old}
   snap();
-  const d=BP.buildDesign(text);const prof=BP.profileOf(text,d);BP.harden(d,prof);BP.layout(d);
-  P.design={nodes:d.nodes,edges:d.edges,doc:d.doc,inputs:d.inputs,multi:d.multi,domain:d.domain,source:text};BP.enrich(P.design,text);
+  const d=BP.buildDesign(text);const prof=BP.profileOf(text,d);BP.harden(d,prof);BP.layoutLayers(d);
+  P.design={nodes:d.nodes,edges:d.edges,doc:d.doc,inputs:d.inputs,multi:d.multi,domain:d.domain,source:text,view:{edge:"straight",layers:true}};BP.enrich(P.design,text);
   if(prof.industry==="banking"&&!/bank/i.test(d.name))d.name="Banking "+d.name;if(P.name==="Untitled design"||/\(earlier\)$/.test(P.name)||hasDesign())P.name=d.name;$("#pname").value=P.name;
   sel=null;renderAll();fit();save();
   const c=BP.capacity(d.inputs,d.multi),svc=d.nodes.filter(n=>n.type==="service");
@@ -156,7 +181,9 @@ function smartLink(n){
     case "client":link(n,lb||gw,"HTTPS");break;
     default:link(svc[0],n,"")}
 }
-function placeNew(n){const tier=CATALOG[n.type].tier;const same=P.design.nodes.filter(x=>x!==n&&(CATALOG[x.type]?.tier)===tier);n.x=40+tier*260;n.y=same.length?Math.max(...same.map(s=>s.y))+96:40}
+function placeNew(n){if(VS().layers){const lk=BP.layerOf(n),mates=P.design.nodes.filter(x=>x!==n&&BP.layerOf(x)===lk);
+    if(mates.length){const rowY=Math.max(...mates.map(m=>m.y)),row=mates.filter(m=>m.y===rowY);if(row.length<5){n.x=Math.max(...row.map(m=>m.x))+W+50;n.y=rowY;return}}
+    BP.layoutLayers(P.design);return}const tier=CATALOG[n.type].tier;const same=P.design.nodes.filter(x=>x!==n&&(CATALOG[x.type]?.tier)===tier);n.x=40+tier*260;n.y=same.length?Math.max(...same.map(s=>s.y))+96:40}
 function addNode(type,name,tech,desc){snap();const c=CATALOG[type];const n={id:uid(),type,name:name||c.l,tech:tech||c.tech[0],desc:desc||"",notes:""};P.design.nodes.push(n);placeNew(n);smartLink(n);sel={k:"n",id:n.id};renderAll();save();return n}
 function addFromText(text){
   const ph=text.replace(/^(please\s+)?(also\s+)?(add|include|introduce|put in|plus|we need|need)\s+(an?\s+|the\s+|some\s+)?/i,"").replace(/[.!]$/,"").trim();
@@ -263,13 +290,13 @@ Return "design" whenever the architecture should change (full updated design, ke
   const out=jsonOf(await callClaude(ai,sys,`Current design JSON: ${cur}\n\nRecent conversation:\n${hist}\n\nUser: ${text}`));
   typing(false);
   if(out.design&&Array.isArray(out.design.nodes)){
-    snap();const pos=Object.fromEntries(P.design.nodes.map(n=>[n.id,[n.x,n.y]]));
+    snap();const prevView=P.design.view;const pos=Object.fromEntries(P.design.nodes.map(n=>[n.id,[n.x,n.y]]));
     const nodes=out.design.nodes.filter(n=>CATALOG[n.type]).map(n=>({id:String(n.id||uid()),type:n.type,name:n.name||CATALOG[n.type].l,tech:n.tech||CATALOG[n.type].tech[0],desc:n.desc||"",notes:""}));
     const ids=new Set(nodes.map(n=>n.id));
     const edges=(out.design.edges||[]).filter(e=>ids.has(String(e.from))&&ids.has(String(e.to))).map(e=>({id:uid(),from:String(e.from),to:String(e.to),label:e.label||"",async:!!e.async}));
     const fresh=nodes.some(n=>!pos[n.id]);
     P.design={source:(P.design.source||"")+" "+text,profile:P.design.profile,nodes,edges,doc:out.design.doc||P.design.doc,inputs:Object.assign({dau:1e6,act:20,kb:1,rw:10,years:5},P.design.inputs,out.design.inputs||{}),multi:!!out.design.multi,domain:"ai"};
-    if(fresh)BP.layout(P.design);nodes.forEach(n=>{if(pos[n.id]&&!fresh){[n.x,n.y]=pos[n.id]}});
+    P.design.view=prevView||{edge:"straight",layers:true};if(fresh)relayout();nodes.forEach(n=>{if(pos[n.id]&&!fresh){[n.x,n.y]=pos[n.id]}});
     if(out.design.name&&(P.name==="Untitled design"||!hasDesign()))P.name=out.design.name;$("#pname").value=P.name;
     BP.enrich(P.design,P.design.source);renderAll();if(fresh)fit();save();
   }
@@ -283,12 +310,22 @@ function applyView(){world.setAttribute("transform",`translate(${view.x},${view.
 function port(a,b){const ax=a.x+W/2,ay=a.y+H/2,bx=b.x+W/2,by=b.y+H/2;const dx=bx-ax,dy=by-ay;
   if(Math.abs(dx)>=Math.abs(dy)*1.2){const s=dx>0?1:-1;return [[ax+s*W/2,ay],[bx-s*W/2,by],"h"]}
   const s=dy>0?1:-1;return [[ax,ay+s*H/2],[bx,by-s*H/2],"v"]}
-function edgePath(a,b){const [[x1,y1],[x2,y2],o]=port(a,b);const c=o==="h"?Math.max(40,Math.abs(x2-x1)/2):Math.max(30,Math.abs(y2-y1)/2);
+const VS=()=>P.design.view||(P.design.view={edge:"straight",layers:false});
+const EDGE_LABEL={straight:"╱ Straight",orthogonal:"┐ Elbow",curved:"〜 Curved"};
+function edgePath(a,b){const [[x1,y1],[x2,y2],o]=port(a,b);const st=VS().edge||"straight";
+  if(st==="straight")return {p:`M${x1},${y1} L${x2},${y2}`,mx:(x1+x2)/2,my:(y1+y2)/2};
+  if(st==="orthogonal"){if(o==="h"){const m=Math.round((x1+x2)/2);return {p:`M${x1},${y1} H${m} V${y2} H${x2}`,mx:m,my:(y1+y2)/2}}const m=Math.round((y1+y2)/2);return {p:`M${x1},${y1} V${m} H${x2} V${y2}`,mx:(x1+x2)/2,my:m}}const c=o==="h"?Math.max(40,Math.abs(x2-x1)/2):Math.max(30,Math.abs(y2-y1)/2);
   const p=o==="h"?`M${x1},${y1} C${x1+(x2>x1?c:-c)},${y1} ${x2-(x2>x1?c:-c)},${y2} ${x2},${y2}`:`M${x1},${y1} C${x1},${y1+(y2>y1?c:-c)} ${x2},${y2-(y2>y1?c:-c)} ${x2},${y2}`;
   return {p,mx:(x1+x2)/2,my:(y1+y2)/2}}
 const COLORS={0:"#64748b",1:"#0e7490",2:"#2457d6",3:"#7044d4",4:"#c98a00",5:"#169a5a",6:"#be185d"};
+function lanesSvg(){const D=P.design;if(!VS().layers||!D.nodes.length)return "";
+  return BP.LAYERS.map(l=>{const ns=D.nodes.filter(n=>BP.layerOf(n)===l.k);if(!ns.length)return "";
+    const x1=Math.min(...ns.map(n=>n.x))-20,y1=Math.min(...ns.map(n=>n.y))-34,x2=Math.max(...ns.map(n=>n.x+W))+20,y2=Math.max(...ns.map(n=>n.y+H))+16;
+    return `<g class="lane" data-lane="${l.k}"><rect x="${x1}" y="${y1}" width="${x2-x1}" height="${y2-y1}" rx="16" fill="${l.c}" fill-opacity=".06" stroke="${l.c}" stroke-opacity=".45"/><text x="${x1+14}" y="${y1+20}" fill="${l.c}">${l.ic} ${esc(l.l)} <tspan class="n" dx="6">${ns.length}</tspan></text></g>`}).join("")}
+function syncViewBtns(){$("#edgeBtn").textContent=EDGE_LABEL[VS().edge||"straight"];$("#layerBtn").setAttribute("aria-pressed",!!VS().layers)}
 function renderCanvas(){
   const D=P.design,by=Object.fromEntries(D.nodes.map(n=>[n.id,n]));
+  $("#lanes").innerHTML=lanesSvg();syncViewBtns();
   $("#edges").innerHTML=D.edges.map(e=>{const a=by[e.from],b=by[e.to];if(!a||!b)return"";const {p,mx,my}=edgePath(a,b);const s=sel?.k==="e"&&sel.id===e.id;const lw=Math.max(0,e.label.length*6.4+10);
     return `<g class="edge${e.async?" async":""}${s?" sel":""}" data-e="${e.id}"><path d="${p}" marker-end="url(#${s?"arrS":"arr"})"/><path class="hit" d="${p}"/>${e.label?`<rect x="${mx-lw/2}" y="${my-9}" width="${lw}" height="16" rx="4"/><text x="${mx}" y="${my+3}" text-anchor="middle">${esc(e.label)}</text>`:""}</g>`}).join("");
   $("#nodes").innerHTML=D.nodes.map(n=>{const c=CATALOG[n.type]||CATALOG.service,col=COLORS[c.tier];const s=sel?.k==="n"&&sel.id===n.id;
@@ -297,7 +334,7 @@ function renderCanvas(){
 }
 const trunc=(s,n)=>s.length>n?s.slice(0,n-1)+"…":s;
 function fit(){const N=P.design.nodes;if(!N.length){view={x:20,y:60,k:1};applyView();return}
-  const r=svg.getBoundingClientRect();if(!r.width)return;const minX=Math.min(...N.map(n=>n.x)),minY=Math.min(...N.map(n=>n.y)),maxX=Math.max(...N.map(n=>n.x+W)),maxY=Math.max(...N.map(n=>n.y+H));
+  const r=svg.getBoundingClientRect();if(!r.width)return;const minX=Math.min(...N.map(n=>n.x))-(VS().layers?24:0),minY=Math.min(...N.map(n=>n.y))-(VS().layers?40:0),maxX=Math.max(...N.map(n=>n.x+W)),maxY=Math.max(...N.map(n=>n.y+H));
   const k=Math.min(1.3,Math.max(.25,Math.min((r.width-40)/(maxX-minX),(r.height-110)/(maxY-minY))));view={k,x:(r.width-(maxX-minX)*k)/2-minX*k,y:60+(r.height-80-(maxY-minY)*k)/2-minY*k};applyView()}
 function toWorld(e){const r=svg.getBoundingClientRect();return {x:(e.clientX-r.left-view.x)/view.k,y:(e.clientY-r.top-view.y)/view.k}}
 svg.addEventListener("pointerdown",e=>{
@@ -318,7 +355,13 @@ svg.addEventListener("wheel",e=>{e.preventDefault();const r=svg.getBoundingClien
 svg.addEventListener("dblclick",e=>{const ng=e.target.closest(".node");if(ng){sel={k:"n",id:ng.dataset.n};renderSpec("inspect");setTimeout(()=>$("#fName")?.select(),0);mobileShow("spec")}});
 const zoomBy=f=>{const r=svg.getBoundingClientRect(),mx=r.width/2,my=r.height/2,k2=Math.min(2.5,Math.max(.2,view.k*f));view.x=mx-(mx-view.x)*k2/view.k;view.y=my-(my-view.y)*k2/view.k;view.k=k2;applyView()};
 $("#zIn").onclick=()=>zoomBy(1.2);$("#zOut").onclick=()=>zoomBy(1/1.2);$("#fitBtn").onclick=fit;
-$("#layoutBtn").onclick=()=>{snap();BP.layout(P.design);renderAll();fit();save()};
+function relayout(){if(VS().layers)BP.layoutLayers(P.design);else BP.layout(P.design)}
+$("#layoutBtn").onclick=()=>{snap();relayout();renderAll();fit();save()};
+$("#edgeBtn").onclick=()=>{const order=["straight","orthogonal","curved"];setEdge(order[(order.indexOf(VS().edge||"straight")+1)%3],true)};
+$("#layerBtn").onclick=()=>setLayers(!VS().layers,true);
+function setEdge(st,quiet){snap();VS().edge=st;renderCanvas();save();if(quiet)toast(`Connectors: ${st==="orthogonal"?"elbow (right angles)":st}`)}
+function setLayers(on,quiet){snap();VS().layers=on;if(on)BP.layoutLayers(P.design);renderAll();fit();save();if(quiet)toast(on?"Grouped into architecture layers":"Layers hidden")}
+const LAYER_WORDS=[["data",/data|database|storage|store/],["security",/secur|auth|identity|guard/],["ai",/llm|agent|\bai\b|model|genai|rag/],["app",/app|application|service|business|domain/],["async",/async|messag|queue|event|stream/],["edge",/edge|api|gateway|ingress/],["client",/client|front|ui|user/],["obs",/observ|monitor|eval|ops/],["integ",/extern|integrat|third/]];
 $("#undoBtn").onclick=undo;
 $("#connBtn").onclick=()=>{connect=!connect;connSrc=null;$("#connBtn").setAttribute("aria-pressed",connect);$("#canvasWrap").classList.toggle("connect",connect);$("#connHint").hidden=!connect;renderCanvas()};
 $("#delBtn").onclick=()=>delSelected();
